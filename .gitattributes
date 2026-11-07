@@ -1,0 +1,11 @@
+# 要传到 Linux 服务器上运行的文件固定用 LF，Windows 上克隆后直接 scp 也不会出错
+*.sh       text eol=lf
+*.py       text eol=lf
+*.json     text eol=lf
+*.example  text eol=lf
+
+# 只在 Windows 上运行的脚本用 CRLF
+*.bat      text eol=crlf
+*.ps1      text eol=crlf
+
+*.md       text

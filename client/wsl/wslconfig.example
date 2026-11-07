@@ -1,0 +1,6 @@
+# Copy into %USERPROFILE%\.wslconfig (merge with an existing [wsl2] section; do not duplicate it).
+# Requires Windows 11 22H2 or later. Apply with: wsl --shutdown
+[wsl2]
+networkingMode=mirrored
+autoProxy=true
+dnsTunneling=true

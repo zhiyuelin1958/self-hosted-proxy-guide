@@ -1,0 +1,24 @@
+# Personal records and secrets: keep them out of the public repository.
+*.local.*
+*.local
+secrets/
+private/
+.env
+credentials.json
+*.mobileconfig
+*.pem
+*.key
+id_ed25519*
+karing_routing_group.json
+*.zip
+*.tar.gz
+xray-state.tar.gz
+config.json
+!server/xray/*.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+__pycache__/

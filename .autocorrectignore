@@ -1,0 +1,5 @@
+# 只检查 Markdown 文档；配置、脚本、模板里的字符串多是标识符，不改
+client/
+server/
+templates/
+tools/

@@ -1,0 +1,146 @@
+{
+    "items": [
+        {
+            "groupid": "custom",
+            "urlOrPath": "",
+            "remark": "自定义",
+            "editAble": true,
+            "groups": [
+                {
+                    "groupid": "custom",
+                    "name": "指定出口：优先代理",
+                    "type": "",
+                    "or": true,
+                    "domain_suffix": [
+                        "example-service.com",
+                        "example-service-cdn.net",
+                        "ipinfo.io",
+                        "ip-api.com",
+                        "ipify.org",
+                        "ip.sb",
+                        "ident.me",
+                        "browserleaks.com",
+                        "whoer.net",
+                        "scamalytics.com",
+                        "ping0.cc",
+                        "ippure.com",
+                        "stun.l.google.com",
+                        "stun.cloudflare.com",
+                        "turn.cloudflare.com"
+                    ],
+                    "ip_cidr": [
+                        "192.0.2.0/24"
+                    ]
+                },
+                {
+                    "groupid": "custom",
+                    "name": "STUN：优先代理",
+                    "type": "",
+                    "or": false,
+                    "network": [
+                        "udp"
+                    ],
+                    "port": [
+                        3478,
+                        5349,
+                        19302,
+                        19303,
+                        19304,
+                        19305,
+                        19306,
+                        19307,
+                        19308,
+                        19309
+                    ]
+                },
+                {
+                    "groupid": "custom",
+                    "name": "校园网络：直连",
+                    "type": "",
+                    "or": true,
+                    "domain_suffix": [
+                        "your-school.edu.cn"
+                    ],
+                    "ip_cidr": [
+                        "100.64.0.0/10",
+                        "10.0.0.0/8",
+                        "172.16.0.0/12",
+                        "192.168.0.0/16",
+                        "127.0.0.0/8",
+                        "::1/128",
+                        "fc00::/7",
+                        "fe80::/10"
+                    ]
+                },
+                {
+                    "groupid": "custom",
+                    "name": "国内常用域名：直连",
+                    "type": "",
+                    "or": true,
+                    "domain_suffix": [
+                        "bilibili.com",
+                        "bilibili.cn",
+                        "bilivideo.com",
+                        "bilivideo.cn",
+                        "hdslb.com",
+                        "biliapi.com",
+                        "biliapi.net",
+                        "qq.com",
+                        "qpic.cn",
+                        "qlogo.cn",
+                        "wechat.com",
+                        "baidu.com",
+                        "bdstatic.com",
+                        "bdimg.com",
+                        "taobao.com",
+                        "tmall.com",
+                        "alicdn.com",
+                        "jd.com",
+                        "360buyimg.com",
+                        "douyin.com",
+                        "douyinvod.com",
+                        "douyincdn.com",
+                        "iqiyi.com",
+                        "qiyi.com",
+                        "youku.com",
+                        "ykimg.com",
+                        "zhihu.com",
+                        "zhimg.com"
+                    ]
+                },
+                {
+                    "groupid": "custom",
+                    "name": "国内域名库：直连",
+                    "type": "",
+                    "or": true,
+                    "rule_set": [
+                        "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs"
+                    ]
+                },
+                {
+                    "groupid": "custom",
+                    "name": "中国IP库：直连",
+                    "type": "",
+                    "or": true,
+                    "rule_set": [
+                        "geoip:metacubex-cn"
+                    ]
+                }
+            ]
+        }
+    ],
+    "rule_set_items": [
+        {
+            "tag": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs"
+        },
+        {
+            "tag": "geoip:metacubex-cn",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs"
+        }
+    ]
+}

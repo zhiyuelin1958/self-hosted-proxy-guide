@@ -1,0 +1,140 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "<UUID_1>",
+            "flow": "xtls-rprx-vision",
+            "email": "user1@xray"
+          },
+          {
+            "id": "<UUID_2>",
+            "flow": "xtls-rprx-vision",
+            "email": "user2@xray"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "<SNI_DOMAIN>:443",
+          "xver": 0,
+          "serverNames": [
+            "<SNI_DOMAIN>"
+          ],
+          "privateKey": "<REALITY_PRIVATE_KEY>",
+          "minClientVer": "1.8.0",
+          "shortIds": [
+            "<SHORT_ID_1>",
+            "<SHORT_ID_2>"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": false
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "streamSettings": {
+        "sockopt": {
+          "domainStrategy": "UseIPv4v6"
+        }
+      }
+    },
+    {
+      "tag": "exit2",
+      "protocol": "socks",
+      "settings": {
+        "servers": [
+          {
+            "address": "<EXIT2_HOST>",
+            "port": 1080,
+            "users": [
+              {
+                "user": "<EXIT2_USER>",
+                "pass": "<EXIT2_PASS>"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "geoip:private"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "protocol": [
+          "bittorrent"
+        ],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "domain:example-service.com",
+          "domain:example-service-cdn.net",
+          "domain:ipinfo.io",
+          "domain:ip-api.com",
+          "domain:ipify.org",
+          "domain:ip.sb",
+          "domain:ident.me",
+          "domain:browserleaks.com",
+          "domain:whoer.net",
+          "domain:scamalytics.com",
+          "domain:ping0.cc",
+          "domain:ippure.com",
+          "domain:stun.l.google.com",
+          "domain:stun.cloudflare.com",
+          "domain:turn.cloudflare.com"
+        ],
+        "outboundTag": "exit2"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "192.0.2.0/24"
+        ],
+        "outboundTag": "exit2"
+      },
+      {
+        "type": "field",
+        "network": "udp",
+        "port": "3478,5349,19302-19309",
+        "outboundTag": "exit2"
+      }
+    ]
+  }
+}
