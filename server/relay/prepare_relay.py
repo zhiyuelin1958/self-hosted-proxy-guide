@@ -2,6 +2,9 @@
 
 Run on the entry server as root, from this directory:  sudo python3 prepare_relay.py
 The main Xray configuration is only read (to copy the second-exit outbound), never changed.
+The relay is not exposed to the Internet: clients reach PUBLIC_HOST:RELAY_PORT only inside
+the VLESS tunnel, where the main Xray redirects it to Envoy. The snippet to add to the main
+Xray configuration is printed at the end.
 """
 import base64
 import grp
@@ -103,18 +106,15 @@ def main():
     main_config = json.loads(original)
     outbound = next((item for item in main_config['outbounds'] if item.get('tag') == EGRESS_TAG), None)
     if outbound is None:
-        raise RuntimeError('No outbound tagged '+EGRESS_TAG+' in '+str(MAIN_XRAY)+' (see docs/06)')
-    # The relay's own Xray: public RELAY_PORT -> Envoy in the namespace; everything Envoy sends -> second exit.
-    # Port 18445 must NOT be opened in ufw or the cloud firewall.
+        raise RuntimeError('No outbound tagged '+EGRESS_TAG+' in '+str(MAIN_XRAY))
+    # The relay's own Xray: everything Envoy sends leaves through the second exit only.
+    # It listens on loopback; nothing here listens on a public port.
     xray = {'log': {'loglevel': 'warning'}, 'inbounds': [
-        {'tag': 'relay-transparent', 'listen': '0.0.0.0', 'port': 18445, 'protocol': 'dokodemo-door',
+        {'tag': 'relay-transparent', 'listen': '127.0.0.1', 'port': 18445, 'protocol': 'dokodemo-door',
          'settings': {'network': 'tcp,udp', 'followRedirect': True},
-         'streamSettings': {'sockopt': {'tproxy': 'tproxy'}}},
-        {'tag': 'relay-ingress', 'listen': '0.0.0.0', 'port': RELAY_PORT, 'protocol': 'dokodemo-door',
-         'settings': {'network': 'tcp', 'address': '10.231.252.2', 'port': 18443}}],
-        'outbounds': [outbound, {'tag': 'relay-front', 'protocol': 'freedom'}, {'tag': 'relay-block', 'protocol': 'blackhole'}],
+         'streamSettings': {'sockopt': {'tproxy': 'tproxy'}}}],
+        'outbounds': [outbound, {'tag': 'relay-block', 'protocol': 'blackhole'}],
         'routing': {'rules': [
-            {'type': 'field', 'inboundTag': ['relay-ingress'], 'outboundTag': 'relay-front'},
             {'type': 'field', 'ip': ['geoip:private'], 'outboundTag': 'relay-block'}]}}
     write(ROOT/'xray-egress.json', json.dumps(xray), 0o600)
     config = build_envoy_config(ROOT/'tls/fullchain.pem', ROOT/'tls/privkey.pem', users, downloads)
@@ -138,7 +138,7 @@ ExecStart=/usr/bin/python3 {BIN}/relay_network.py start
 ExecStop=/usr/bin/python3 {BIN}/relay_network.py stop
 ''',
         NAME+'-egress.service': f'''[Unit]
-Description=Independent relay second-exit egress and TLS forwarding
+Description=Independent relay second-exit egress
 Requires={NAME}-network.service
 After={NAME}-network.service
 PartOf={NAME}.target
@@ -173,8 +173,16 @@ WantedBy=multi-user.target
         write(pathlib.Path('/etc/systemd/system')/name, content, 0o644)
     run('/usr/local/bin/xray', 'run', '-test', '-config', str(ROOT/'xray-egress.json'))
     run('systemctl', 'daemon-reload')
+    # Add these to the main Xray configuration by hand: the outbound anywhere in "outbounds",
+    # the rule as the FIRST entry of "routing.rules" (before the geoip:private block rule).
+    snippet = {'outbound': {'tag': 'relay-private', 'protocol': 'freedom', 'settings': {
+                   'redirect': '10.231.252.2:18443',
+                   'finalRules': [{'action': 'allow', 'network': 'tcp', 'ip': ['10.231.252.2/32'], 'port': '18443'}]}},
+               'rule': {'type': 'field', 'ip': [PUBLIC_HOST+'/32'], 'port': str(RELAY_PORT), 'network': 'tcp',
+                        'outboundTag': 'relay-private'}}
     print(json.dumps({'prepared': True, 'servicesStarted': False, 'portsOpened': False,
-                      'mainXrayUnchanged': MAIN_XRAY.read_bytes() == original}))
+                      'mainXrayUnchanged': MAIN_XRAY.read_bytes() == original,
+                      'addToMainXray': snippet}, indent=2))
 
 
 if __name__ == '__main__':

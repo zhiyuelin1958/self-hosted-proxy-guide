@@ -9,7 +9,6 @@ credentials.json
 *.pem
 *.key
 id_ed25519*
-karing_routing_group.json
 *.zip
 *.tar.gz
 xray-state.tar.gz

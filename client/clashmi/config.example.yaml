@@ -1,0 +1,134 @@
+# Clash Mi (mihomo core) profile for Windows. Replace every <...> placeholder.
+# Import as a local file and choose the "no override" mode, so the app keeps this file as is.
+# Phones use the same file without the `listeners` block and without `path` under rule-providers.
+
+mixed-port: 3067                     # rule-mode HTTP/SOCKS port; browsers, editors and WSL point here
+allow-lan: false
+bind-address: 127.0.0.1
+mode: rule
+log-level: warning
+ipv6: false
+external-controller: 127.0.0.1:3057
+secret: <CONTROLLER_SECRET>          # any long random string
+find-process-mode: strict
+profile:
+  store-selected: true
+
+proxies:
+  - name: SG-User1
+    type: vless
+    server: <SERVER_IP>
+    port: 443
+    uuid: <UUID_1>
+    network: tcp
+    tls: true
+    udp: true
+    flow: xtls-rprx-vision
+    packet-encoding: xudp
+    servername: <SNI_DOMAIN>
+    client-fingerprint: chrome
+    skip-cert-verify: false
+    reality-opts:
+      public-key: <REALITY_PUBLIC_KEY>
+      short-id: <SHORT_ID_1>
+      support-x25519mlkem768: true   # post-quantum key exchange; check server support before upgrading either side
+
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies: [SG-User1]
+
+listeners:                           # extra loopback ports for testing
+  - {name: direct-in, type: mixed, listen: 127.0.0.1, port: 3065, udp: true, proxy: DIRECT}   # always direct
+  - {name: proxy-in, type: mixed, listen: 127.0.0.1, port: 3066, udp: true, proxy: PROXY}     # always proxied
+
+# On Windows, Clash Mi takes TUN settings from its own service_core_setting.json, not from here.
+# Put the same values there, including route-exclude-address for the entry server.
+tun:
+  enable: true
+  stack: gvisor
+  mtu: 1280
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+  dns-hijack: ["any:53"]
+  route-exclude-address: [<SERVER_IP>/32]   # Windows only: lets health checks see whether the entry itself is reachable
+
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  ipv6: false
+  enhanced-mode: redir-host
+  respect-rules: true
+  default-nameserver: [223.5.5.5, 119.29.29.29]
+  proxy-server-nameserver: ["https://223.5.5.5/dns-query#DIRECT"]
+  nameserver:                        # everything else: foreign DoH through the proxy
+    - "https://1.1.1.1/dns-query#PROXY"
+    - "https://8.8.8.8/dns-query#PROXY"
+  nameserver-policy:
+    "rule-set:cn-domain": ["https://223.5.5.5/dns-query#DIRECT"]
+    "+.your-school.edu.cn": [system]                     # campus names often resolve only on campus DNS
+    "+.example-cn-site.com": ["https://223.5.5.5/dns-query#DIRECT"]
+    "+.example-service.com": ["https://1.1.1.1/dns-query#PROXY", "https://8.8.8.8/dns-query#PROXY"]
+    "+.ipinfo.io": ["https://1.1.1.1/dns-query#PROXY", "https://8.8.8.8/dns-query#PROXY"]
+
+sniffer:
+  enable: true
+  override-destination: true
+  sniff:
+    TLS: {ports: [443, 8443]}
+    HTTP: {ports: [80, "8080-8880"]}
+    QUIC: {ports: [443, 8443]}
+
+rule-providers:
+  cn-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs
+    path: ./rules/cn-domain.mrs
+    interval: 86400                  # update every 24 hours
+    proxy: PROXY                     # direct downloads from GitHub often fail
+  cn-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    path: ./rules/cn-ip.mrs
+    interval: 86400
+    proxy: PROXY
+
+rules:
+  # 1. Disable HTTP/3, so browsers fall back to TCP (HTTP/2) through the tunnel.
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
+  # 2. Protected list: the same domains as protected-domains.json, matched first.
+  - DOMAIN-SUFFIX,example-service.com,PROXY
+  - DOMAIN-SUFFIX,example-service-cdn.net,PROXY
+  - DOMAIN-SUFFIX,ipinfo.io,PROXY
+  - DOMAIN-SUFFIX,ipify.org,PROXY
+  - DOMAIN-SUFFIX,ident.me,PROXY
+  - DOMAIN-SUFFIX,browserleaks.com,PROXY
+  - DOMAIN-SUFFIX,stun.l.google.com,PROXY
+  - DOMAIN-SUFFIX,stun.cloudflare.com,PROXY
+  - IP-CIDR,192.0.2.0/24,PROXY,no-resolve          # the service's own IP range, if it publishes one
+  # 3. STUN / WebRTC ports go through the proxy.
+  - AND,((NETWORK,UDP),(DST-PORT,3478)),PROXY
+  - AND,((NETWORK,UDP),(DST-PORT,5349)),PROXY
+  - AND,((NETWORK,UDP),(DST-PORT,19302-19309)),PROXY
+  # 4. Campus, LAN and private ranges: direct.
+  - DOMAIN-SUFFIX,your-school.edu.cn,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  # 5. Personal additions the domain list misses.
+  - DOMAIN-SUFFIX,example-cn-site.com,DIRECT
+  # 6. China domain list, then China IP list (catches apps that connect by IP).
+  - RULE-SET,cn-domain,DIRECT
+  - RULE-SET,cn-ip,DIRECT
+  # 7. Everything else.
+  - MATCH,PROXY

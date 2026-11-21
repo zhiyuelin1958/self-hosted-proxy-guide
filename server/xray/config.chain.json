@@ -33,7 +33,6 @@
             "<SNI_DOMAIN>"
           ],
           "privateKey": "<REALITY_PRIVATE_KEY>",
-          "minClientVer": "1.8.0",
           "shortIds": [
             "<SHORT_ID_1>",
             "<SHORT_ID_2>"

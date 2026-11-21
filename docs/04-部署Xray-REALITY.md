@@ -1,13 +1,13 @@
 # 04 部署 Xray（VLESS + REALITY + XTLS-Vision）
 
-本章结束时，你会得到每位用户一行 `vless://` 链接，客户端导入即可用（先不做分流和二级出口）。
+本章结束时，服务器上的 Xray 开始监听 443，每位用户有一组连接参数（先不做分流和二级出口）。本章命令以 root 执行。
 
 ## 1. 安装 Xray
 
-使用官方安装脚本，并指定版本，以便和客户端保持兼容组合（见第 09 章）：
+使用官方安装脚本，并指定版本，以便和客户端保持已验证的兼容组合：
 
 ```bash
-sudo bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version v26.7.28
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version v26.7.28
 xray version
 ```
 
@@ -54,7 +54,7 @@ openssl rand -hex 4       # 每位用户各执行一次，得到 8 位 shortId
 REALITY 会把未认证的连接转发给目标网站，所以这个网站要“像是你服务器会去连的样子”。选择标准：
 
 1. 支持 **TLS 1.3** 和 **HTTP/2**；
-2. 从你的服务器访问稳定、延迟低，最好在同一地区（日本服务器选日本常见大站）；
+2. 从你的服务器访问稳定、延迟低，最好在同一地区（新加坡服务器选当地常见的大站）；
 3. 不会把访问跳转到别的域名（`dest` 的域名和 `serverNames` 应一致）；
 4. 避免和大量他人雷同的“热门教程示例”。
 
@@ -71,8 +71,8 @@ xray tls ping <SNI_DOMAIN>
 把 [server/xray/config.basic.json](../server/xray/config.basic.json) 的内容复制到服务器，替换所有 `<...>` 占位符：
 
 ```bash
-sudo cp /usr/local/etc/xray/config.json /usr/local/etc/xray/config.json.orig
-sudo nano /usr/local/etc/xray/config.json
+cp /usr/local/etc/xray/config.json /usr/local/etc/xray/config.json.orig
+nano /usr/local/etc/xray/config.json
 ```
 
 关键字段解释：
@@ -87,28 +87,29 @@ sudo nano /usr/local/etc/xray/config.json
 | `serverNames` | 允许客户端使用的 SNI，填目标网站域名 |
 | `privateKey` | 第 2 步生成的私钥 |
 | `shortIds` | 允许的 shortId 列表 |
-| `minClientVer` | 拒绝低于此版本的客户端内核（可选，见下文） |
-| `sniffing` | 从流量中识别目标域名，第 06 章按域名分流时必需 |
+| `sniffing` | 从流量中识别目标域名，服务端按域名分流时必需 |
 | `routing` 中的 `geoip:private` → `block` | 禁止通过代理访问服务器所在内网（防止被当跳板） |
 | `protocol: bittorrent` → `block` | 禁止 BT，避免版权投诉和流量暴涨 |
 
-> 关于 `minClientVer`：它检查的是**客户端所用内核报告的 Xray 版本号**。基于 sing-box 的客户端报告方式与 Xray 客户端不同，设置过高会导致握手失败。本教程验证过 `"1.8.0"` 与 Karing 1.2.25 兼容；不确定时可以先不写这一项。
+> 不要随手加 `minClientVer`。它检查的是客户端内核报告的 Xray 版本号，mihomo 内核的报告方式与 Xray 客户端不同，设置过高会导致握手失败。
+>
+> Xray 26 起 REALITY 支持 `x25519mlkem768`（抗量子密钥交换），Clash Mi 侧对应 `support-x25519mlkem768: true`。两端版本要匹配，升级任一端前先验证握手。
 
 检查并启动：
 
 ```bash
-sudo xray run -test -config /usr/local/etc/xray/config.json
-sudo systemctl enable xray
-sudo systemctl restart xray
+xray run -test -config /usr/local/etc/xray/config.json
+systemctl enable xray
+systemctl restart xray
 systemctl is-active xray
-sudo ss -tlnp | grep ':443'
+ss -tlnp | grep ':443'
 ```
 
 `-test` 输出 `Configuration OK` 才重启；最后一行应看到 `xray` 在监听 443。
 
-## 5. 生成客户端导入链接
+## 5. 整理客户端参数
 
-链接格式（一行，无空格）：
+Clash Mi 的配置要用到下面这组参数。也可以拼成一行 `vless://` 链接，给支持链接导入的客户端用。链接格式（一行，无空格）：
 
 ```text
 vless://<UUID>@<SERVER_IP>:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=<SNI_DOMAIN>&fp=chrome&pbk=<PUBLIC_KEY>&sid=<SHORT_ID>&type=tcp&headerType=none#<节点名>
@@ -120,19 +121,19 @@ vless://<UUID>@<SERVER_IP>:443?encryption=none&flow=xtls-rprx-vision&security=re
 | `fp=chrome` | 客户端模仿 Chrome 的 TLS 指纹 |
 | `pbk` | REALITY 公钥（不是私钥） |
 | `sid` | 该用户的 shortId |
-| `#` 后 | 节点在客户端里显示的名字，如 `JP-User1` |
+| `#` 后 | 节点在客户端里显示的名字，如 `SG-User1` |
 
 用脚本生成：
 
 ```bash
-bash server/scripts/make-vless-link.sh <UUID> <SERVER_IP> <SNI_DOMAIN> <PUBLIC_KEY> <SHORT_ID> JP-User1
+bash server/scripts/make-vless-link.sh <UUID> <SERVER_IP> <SNI_DOMAIN> <PUBLIC_KEY> <SHORT_ID> SG-User1
 ```
 
-每位用户一条链接，分别私下发给对方。**链接里包含连接所需的全部信息，等同于密码**。
+每位用户一组参数，分别私下发给对方。**这些参数包含连接所需的全部信息，等同于密码**。
 
 ## 6. 快速验证
 
-先在客户端导入链接（第 05 章第 1 节），选全局模式，访问：
+在客户端配好节点、选全局模式，访问：
 
 - <https://www.cloudflare.com/cdn-cgi/trace>：`ip=` 应为 `<SERVER_IP>`，`loc=` 为服务器所在国家代码。
 
@@ -140,7 +141,5 @@ bash server/scripts/make-vless-link.sh <UUID> <SERVER_IP> <SNI_DOMAIN> <PUBLIC_K
 
 1. `systemctl status xray`、`journalctl -u xray -n 50` 有无报错；
 2. 云安全组和 `ufw` 是否都放行了 443；
-3. 链接中的 `pbk` 是否为公钥、`sid` 是否在服务端 `shortIds` 里、`sni` 是否在 `serverNames` 里；
-4. 是否误设了过高的 `minClientVer`。
-
-更多见[第 10 章](10-故障排查.md)。
+3. 客户端的公钥（`pbk` / `public-key`）是否为公钥、`sid` 是否在服务端 `shortIds` 里、`sni` 是否在 `serverNames` 里；
+4. 两端是否都支持 `x25519mlkem768`，或者都不开。

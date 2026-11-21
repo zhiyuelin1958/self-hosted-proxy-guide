@@ -1,7 +1,8 @@
 """Install the IP certificate, its automatic renewal timer, and start the relay.
 
-Run after `certbot certonly ... --cert-name <CERT_NAME>` has succeeded (docs/07):
+Run after `certbot certonly ... --cert-name <CERT_NAME>` has succeeded:
   sudo python3 enable_renewal.py
+TCP 80 is opened in ufw only while certbot runs (pre/post hooks), so keep it closed otherwise.
 """
 import os
 import pathlib
@@ -30,7 +31,8 @@ After=network-online.target
 Wants=network-online.target
 [Service]
 Type=oneshot
-ExecStart=/opt/{NAME}/acme/bin/certbot renew --cert-name {CERT_NAME} --quiet
+ExecStart=/opt/{NAME}/acme/bin/certbot renew --cert-name {CERT_NAME} --quiet \
+  --pre-hook 'ufw allow 80/tcp' --post-hook 'ufw delete allow 80/tcp'
 ''',
         # IP certificates are short-lived (about 6 days), so check twice a day.
         NAME+'-renew.timer': '''[Unit]

@@ -3,6 +3,23 @@ import base64
 import json
 
 
+def download_headers(filename):
+    """Response headers for a file served at a secret download path, chosen by its suffix."""
+    suffix = str(filename).rsplit('.', 1)[-1].lower()
+    content_type = {'yaml': 'application/yaml; charset=utf-8',
+                    'html': 'text/html; charset=utf-8'}.get(suffix, 'application/x-apple-aspen-config')
+    download_name = {'yaml': 'clashmi-phone.yaml'}.get(suffix, 'iPhone-relay.mobileconfig')
+    disposition = 'inline' if suffix == 'html' else 'attachment; filename="'+download_name+'"'
+    headers = [{'header': {'key': 'content-type', 'value': content_type}},
+               {'header': {'key': 'content-disposition', 'value': disposition}},
+               {'header': {'key': 'cache-control', 'value': 'no-store'}},
+               {'header': {'key': 'referrer-policy', 'value': 'no-referrer'}}]
+    if suffix == 'yaml':
+        # Clash Mi reads this header as the subscription update interval in hours.
+        headers.append({'header': {'key': 'profile-update-interval', 'value': '24'}})
+    return headers
+
+
 def build_envoy_config(certificate, key, users, downloads=None, diagnostics=False):
     """Return an Envoy static configuration.
 
@@ -40,10 +57,7 @@ end
     routes = []
     for url_path, filename in downloads.items():
         routes.append({'match': {'path': url_path}, 'direct_response': {'status': 200, 'body': {'filename': str(filename)}},
-                       'response_headers_to_add': [
-                           {'header': {'key': 'content-type', 'value': 'application/x-apple-aspen-config'}},
-                           {'header': {'key': 'content-disposition', 'value': 'attachment; filename="iPhone-relay.mobileconfig"'}},
-                           {'header': {'key': 'cache-control', 'value': 'no-store'}}]})
+                       'response_headers_to_add': download_headers(filename)})
     routes += [
         {'match': {'prefix': '/.well-known/masque/udp/'}, 'route': {
             'cluster': 'relay-targets', 'timeout': '0s',

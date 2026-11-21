@@ -12,8 +12,6 @@ textRules:
   # For example, if we wants to let "Hello你好" just warning, and "Hi你好" to ignore
   # "Hello你好": 2
   # "Hi你好": 0
-  # Karing 分组名，须与 client/karing/routing-groups.example.json 一致
-  "中国IP库": 0
 fileTypes:
   # Config the files associations, you config is higher priority than default.
   # "rb": ruby
