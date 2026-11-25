@@ -121,7 +121,7 @@ def main():
     write(ROOT/'envoy.json', json.dumps(config), group=group)
 
     source = pathlib.Path(__file__).parent
-    for name in ('relay_network.py', 'relay_config.py'):
+    for name in ('relay_settings.py', 'relay_network.py', 'relay_config.py'):
         write(BIN/name, (source/name).read_text(), 0o755)
 
     units = {

@@ -85,12 +85,16 @@ end
                 '@type': 'type.googleapis.com/envoy.extensions.filters.http.router.v3.Router'}}]
     }
     if diagnostics:
+        # The DNS and upstream fields tell where a 503 comes from; download paths and headers are not logged.
         hcm['access_log_options'] = {'flush_log_on_tunnel_successfully_established': True}
         hcm['access_log'] = [{'name': 'envoy.access_loggers.stdout', 'typed_config': {
             '@type': 'type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog',
-            'log_format': {'json_format': {'time': '%START_TIME%', 'target': '%REQ(:AUTHORITY)%',
-                                           'method': '%REQ(:METHOD)%', 'status': '%RESPONSE_CODE%',
-                                           'protocol': '%PROTOCOL%'}}}}]
+            'log_format': {'json_format': {
+                'time': '%START_TIME%', 'target': '%REQ(:AUTHORITY)%', 'method': '%REQ(:METHOD)%',
+                'status': '%RESPONSE_CODE%', 'protocol': '%PROTOCOL%',
+                'response_details': '%RESPONSE_CODE_DETAILS%', 'response_flags': '%RESPONSE_FLAGS%',
+                'upstream': '%UPSTREAM_HOST%', 'duration_ms': '%DURATION%',
+                'dns_ms': '%COMMON_DURATION(envoy.dynamic_forward_proxy.dns_start_ms:envoy.dynamic_forward_proxy.dns_end_ms:ms)%'}}}}]
     return {'static_resources': {
         'listeners': [{'name': 'relay', 'address': {'socket_address': {'address': '10.231.252.2', 'port_value': 18443}},
                        'filter_chains': [{'transport_socket': {'name': 'envoy.transport_sockets.tls', 'typed_config': {

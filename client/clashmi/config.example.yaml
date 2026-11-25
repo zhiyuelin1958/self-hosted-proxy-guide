@@ -111,10 +111,11 @@ rules:
   - DOMAIN-SUFFIX,stun.l.google.com,PROXY
   - DOMAIN-SUFFIX,stun.cloudflare.com,PROXY
   - IP-CIDR,192.0.2.0/24,PROXY,no-resolve          # the service's own IP range, if it publishes one
-  # 3. STUN / WebRTC ports go through the proxy.
-  - AND,((NETWORK,UDP),(DST-PORT,3478)),PROXY
-  - AND,((NETWORK,UDP),(DST-PORT,5349)),PROXY
-  - AND,((NETWORK,UDP),(DST-PORT,19302-19309)),PROXY
+  # 3. STUN / WebRTC ports go through the proxy, unless the STUN server is in China.
+  #    China-based STUN servers then see your real public IP; foreign ones still see the exit.
+  - AND,((NETWORK,UDP),(DST-PORT,3478),(NOT,((RULE-SET,cn-ip)))),PROXY
+  - AND,((NETWORK,UDP),(DST-PORT,5349),(NOT,((RULE-SET,cn-ip)))),PROXY
+  - AND,((NETWORK,UDP),(DST-PORT,19302-19309),(NOT,((RULE-SET,cn-ip)))),PROXY
   # 4. Campus, LAN and private ranges: direct.
   - DOMAIN-SUFFIX,your-school.edu.cn,DIRECT
   - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve

@@ -10,9 +10,12 @@ import shutil
 import subprocess
 import sys
 
-NS, HOST, PEER, CHAIN = 'app-relay', 'rly-host', 'rly-ns', 'APP_RELAY'
+from relay_settings import NAME
+
+NS, HOST, PEER = NAME, 'rly-host', 'rly-ns'
+CHAIN = NAME.upper().replace('-', '_')
 TABLE, PRIORITY = '65401', '10010'
-STATE = pathlib.Path('/run/app-relay-network.json')
+STATE = pathlib.Path('/run')/(NAME+'-network.json')
 
 
 def run(*args, check=True):
